@@ -10,12 +10,8 @@ if __name__ == "__main__":
     opt = options.parse()
 
     opt.model_name = "edp2022"
-    opt.data_path = [
-        "/data/Datasets/blender/blender-duodenum-5-211126",
-        "/data/Datasets/blender/blender-duodenum-5(dark)-211126",
-        "/data/Datasets/blender/blender-duodenum-5(light)-211126",
-    ]
-    opt.val_path = "/data/Datasets/blender/blender-duodenum-3-210909"
+    opt.data_path = "/opt/data/blender/blender-duodenum-5-211126"
+    opt.val_path = None  # "/data/Datasets/blender/blender-duodenum-3-210909"
     opt.log_dir = "/opt/ytom/edp2022"
     opt.num_epochs = 15
     opt.log_frequency = 1
@@ -45,23 +41,27 @@ if __name__ == "__main__":
     opt.weight_normal_pc_loss = 0.25
     opt.weight_normal_norm_loss = 0.25
 
+    opt.test = False
+
     model = plEndoDepth(options=opt, verbose=2)
 
     train_loader = DataLoader(
         model.train_set, opt.batch_size, shuffle=True,
         num_workers=opt.num_workers, pin_memory=True, drop_last=False
     )
-    val_loader = DataLoader(
-        model.val_set, opt.batch_size, shuffle=False,
-        num_workers=opt.num_workers, pin_memory=True, drop_last=False
-    )
+    # val_loader = DataLoader(
+    #     model.val_set, opt.batch_size, shuffle=False,
+    #     num_workers=opt.num_workers, pin_memory=True, drop_last=False
+    # )
 
     checkpoint = ModelCheckpoint(monitor="val_loss")
     early_stop = EarlyStopping(monitor="val_loss", min_delta=1e-8, patience=5, mode="min",
                                stopping_threshold=1e-4, divergence_threshold=10, verbose=False)
     # trainer = pl.Trainer(gpus=1, max_epochs=1, precision=32, fast_dev_run=True,
     #                      limit_train_batches=0.01, callbacks=[checkpoint, early_stop])
-    trainer = pl.Trainer(gpus=1, max_epochs=opt.num_epochs, precision=32,
-                         limit_train_batches=1.0, callbacks=[checkpoint, early_stop],
-                         resume_from_checkpoint="lightning_logs/version_0/checkpoints/epoch=5-step=4049.ckpt")
-    trainer.fit(model, train_loader, val_loader)
+    trainer = pl.Trainer(gpus=1, max_epochs=opt.num_epochs,
+                         precision=32,
+                         limit_train_batches=1.0,
+                         callbacks=[checkpoint, early_stop])
+    trainer.fit(model, train_loader,
+                ckpt_path="lightning_logs/version_1/checkpoints/epoch=8-step=6074.ckpt")  # , val_loader

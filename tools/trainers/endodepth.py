@@ -14,6 +14,7 @@ from networks.endodepth import ResnetAttentionEncoder, DepthDecoder
 from torch.utils.data.dataset import Subset
 from datasets.dataloader import ConcatDataset
 from tools.trainers.make_dataset import get_depth_dataset_only
+from datasets.blender_dataset import BlenderDataset
 
 import pytorch_lightning as pl
 
@@ -57,16 +58,9 @@ class plEndoDepth(pl.LightningModule):
             assert options.height % 32 == 0, "'height' must be a multiple of 32"
             assert options.width % 32 == 0, "'width' must be a multiple of 32"
 
-            self.train_set, self.val_set = self.make_dataset(options)
+            self.train_set, self.val_set = BlenderDataset(options.data_path), None
 
-            dataset: MonoDataset
-            if isinstance(self.train_set, Subset):
-                dataset = self.train_set.dataset
-            if isinstance(self.train_set, ConcatDataset):
-                dataset = self.train_set.datasets[0]
-            else:
-                dataset = self.train_set
-
+            dataset = self.train_set.src
             options.min_depth_units = dataset.log_near
             options.max_depth_units = dataset.log_far
             options.min_depth = dataset.near
@@ -79,7 +73,7 @@ class plEndoDepth(pl.LightningModule):
             self.eval()
             self.register_buffer("K", torch.eye(3).view(1, 3, 3).float())
             self.register_buffer("iK", torch.eye(3).view(1, 3, 3).float())
-        
+
         self.options = options
 
     def configure_optimizers(self):

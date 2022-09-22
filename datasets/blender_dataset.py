@@ -7,7 +7,7 @@ from geometry.camera import CameraModel
 
 class BlenderData:
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, device = "cuda"):
 
         self.cam = CameraModel("assets/blender.yaml")
         self.K = self.cam.K.float()
@@ -41,6 +41,10 @@ class BlenderData:
     def get_intrinsic(self):
         return self.K, self.invK
 
+    def get_data(self, index):
+        f = self.filenames[index]
+        return torch.load(f)
+
 
 CASE_NORMAL = 0
 CASE_LIGHT = 1
@@ -51,31 +55,19 @@ class BlenderDataset(Dataset):
     """ Blender sysnthesis dataset.
     """
 
-    def __init__(self, case: int, src: BlenderData = None,
-                 *args, **kwargs):
+    def __init__(self, path: str, *args, **kwargs):
         super(BlenderDataset, self).__init__(*args, **kwargs)
-        assert(case in [0, 1, 2])
-        self.src = src
-        self.case = case
-
-    def get_index(self, index):
-        return self.src.get_index(index)
-
-    def get_color(self, index):
-        return self.src.get_color(index, self.case)
-
-    def get_depth(self, index):
-        return self.src.get_depth(index)
-
-    def get_intrinsic(self, index=None):
-        return self.src.get_intrinsic()
+        self.src = BlenderData(path)
 
     def __getitem__(self, index):
+        c = index // self.src.length
+        i = index % self.src.length
+        data = self.src.get_data(i)
         inputs = {
-            "color": self.get_color(index),
-            "depth": self.get_depth(index),
+            "color": data[c],
+            "depth": data[-1],
         }
         return inputs
-    
+
     def __len__(self):
-        return self.src.length
+        return self.src.length * 3
