@@ -43,6 +43,9 @@ class plEndoDepth(pl.LightningModule):
             options.min_depth = dataset.near
             options.max_depth = dataset.far
 
+            test = torch.load("/opt/data/blender/test.pth")
+            self.test = test.view(1, 3, *test.shape[-2:])
+
             K, iK = dataset.get_intrinsic()
             self.register_buffer("K", (K[:3, :3]).view(1, 3, 3))
             self.register_buffer("iK", (iK[:3, :3]).view(1, 3, 3))
@@ -52,8 +55,6 @@ class plEndoDepth(pl.LightningModule):
             self.register_buffer("iK", torch.eye(3).view(1, 3, 3).float())
 
         self.options = options
-        test = torch.load("/opt/data/blender/test.pth")
-        self.test = test.view(1, 3, *test.shape[-2:])
 
     def configure_optimizers(self):
         param = []
