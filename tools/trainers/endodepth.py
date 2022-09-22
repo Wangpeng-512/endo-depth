@@ -111,17 +111,16 @@ class plEndoDepth(pl.LightningModule):
             out[0], self.options.min_depth_units,
             self.options.max_depth_units, 1.0)
 
-        losses = self.compute_loss(I, D, D_)
+        losses = self.compute_loss(I, D, D_, prefix="train_")
 
         # Record
         self.log_dict(losses, True)
-        return losses
+        return losses["train_loss"]
 
     def training_epoch_end(self, outputs):
-        schs = self.lr_schedulers()
-        for i, sch in enumerate(schs):
-            sch.step()
-            self.log(f'lr/{i}', sch.get_lr()[0])
+        sch = self.lr_schedulers()
+        sch.step()
+        self.log(f'lr', sch.get_last_lr()[0])
 
     def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int):
 
@@ -134,37 +133,35 @@ class plEndoDepth(pl.LightningModule):
             out, self.options.min_depth_units,
             self.options.max_depth_units, 1.0)
 
-        losses = self.compute_loss(I, D, D_)
-
+        losses = self.compute_loss(I, D, D_, prefix="val_")
         self.log_dict(losses)
-        return losses
 
-    def compute_loss(self, images: torch.Tensor, depth_gt: torch.Tensor, depth: torch.Tensor):
+    def compute_loss(self, images: torch.Tensor, depth_gt: torch.Tensor, depth: torch.Tensor, prefix: str = ""):
 
         losses = {}
 
         if self.options.use_smooth_loss:
             idepth = 1.0 / (depth + 1e-7)
-            losses['loss/smooth'] = inverse_depth_smoothness_loss(idepth, images)
+            losses[f'{prefix}loss/smooth'] = inverse_depth_smoothness_loss(idepth, images)
         else:
-            losses['loss/smooth'] = 0
+            losses[f'{prefix}loss/smooth'] = 0
 
         if self.options.use_depth_loss:
-            losses['loss/depth'] = LOSSES.depth_loss(depth_gt, depth, use_depth=True, use_normal=False, use_gradient=False)
+            losses[f'{prefix}loss/depth'] = LOSSES.depth_loss(depth_gt, depth, use_depth=True, use_normal=False, use_gradient=False)
         else:
-            losses['loss/depth'] = 0
+            losses[f'{prefix}loss/depth'] = 0
 
         if self.options.use_normal_loss:
-            losses['loss/pc'], losses['loss/normal'] = self.compute_normal_loss(depth, depth_gt, self.K)
+            losses[f'{prefix}loss/pc'], losses[f'{prefix}loss/normal'] = self.compute_normal_loss(depth, depth_gt, self.K)
         else:
-            losses['loss/pc'] = 0
-            losses['loss/normal'] = 0
+            losses[f'{prefix}loss/pc'] = 0
+            losses[f'{prefix}loss/normal'] = 0
 
-        losses['loss'] = \
-            self.options.weight_depth_loss * losses['loss/depth'] + \
-            self.options.weight_normal_pc_loss * losses['loss/pc'] + \
-            self.options.weight_normal_norm_loss * losses['loss/normal'] + \
-            self.options.weight_smooth_loss * losses['loss/smooth']
+        losses[f'{prefix}loss'] = \
+            self.options.weight_depth_loss * losses[f'{prefix}loss/depth'] + \
+            self.options.weight_normal_pc_loss * losses[f'{prefix}loss/pc'] + \
+            self.options.weight_normal_norm_loss * losses[f'{prefix}loss/normal'] + \
+            self.options.weight_smooth_loss * losses[f'{prefix}loss/smooth']
         return losses
 
     def compute_normal_loss(self, depth: torch.Tensor, depth_gt: torch.Tensor, K0: torch.Tensor):

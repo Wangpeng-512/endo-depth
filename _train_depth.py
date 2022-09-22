@@ -3,6 +3,7 @@ from tools.options.endodepth import EndoDepthOptions
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 if __name__ == "__main__":
     options = EndoDepthOptions()
@@ -16,7 +17,7 @@ if __name__ == "__main__":
     ]
     opt.val_path = "/data/Datasets/blender/blender-duodenum-3-210909"
     opt.log_dir = "/opt/ytom/edp2022"
-    opt.num_epochs = 25
+    opt.num_epochs = 15
     opt.log_frequency = 1
     opt.save_frequency = 1
     opt.png = True
@@ -55,9 +56,11 @@ if __name__ == "__main__":
         num_workers=opt.num_workers, pin_memory=True, drop_last=False
     )
 
+    checkpoint = ModelCheckpoint(monitor="val_loss")
     early_stop = EarlyStopping(monitor="loss", min_delta=1e-8, patience=5, mode="min",
                                stopping_threshold=1e-4, divergence_threshold=10, verbose=False)
+    # trainer = pl.Trainer(gpus=1, max_epochs=1, precision=32, fast_dev_run=True,
+    #                      limit_train_batches=0.01, callbacks=[checkpoint, early_stop])
     trainer = pl.Trainer(gpus=1, max_epochs=opt.num_epochs, precision=32,
-                         limit_train_batches=1.0, callbacks=[early_stop])
+                         limit_train_batches=1.0, callbacks=[checkpoint, early_stop])
     trainer.fit(model, train_loader, val_loader)
-    # trainer.validate(model, val_loader)
