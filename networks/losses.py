@@ -49,7 +49,7 @@ def smooth_loss(disp: torch.Tensor, img: torch.Tensor,
 
 
 def depth_loss(gt: torch.Tensor, pred: torch.Tensor,
-               min_depth: float = None, max_depth: float = None,
+               # min_depth: float = None, max_depth: float = None,
                use_depth: bool = True, use_gradient: bool = True, use_normal: bool = True):
     """
     1. Hu, J., Ozay, M., Zhang, Y. & Okatani, T. Revisiting single image depth estimation: Toward higher resolution maps with accurate object boundaries. Proc. - 2019 IEEE Winter Conf. Appl. Comput. Vision, WACV 2019 1043–1051 (2019) doi:10.1109/WACV.2019.00116.
@@ -60,35 +60,35 @@ def depth_loss(gt: torch.Tensor, pred: torch.Tensor,
         max_depth (float, optional): [description]. Defaults to None.
     """
 
-    mask = torch.ones_like(gt, dtype=torch.bool)
-    if min_depth is not None:
-        mask[gt < min_depth] = False
-        mask[pred < min_depth] = False
-    if max_depth is not None:
-        mask[gt > max_depth] = False
-        mask[pred > max_depth] = False
+    if not(use_depth or use_gradient or use_normal):
+        return 0
 
-    ones = torch.autograd.Variable(torch.ones_like(gt))
-    gt_grad = kornia.filters.spatial_gradient(gt)
-    pred_grad = kornia.filters.spatial_gradient(pred)
-    gt_grad_dx = gt_grad[:, :, 0].contiguous()
-    gt_grad_dy = gt_grad[:, :, 1].contiguous()
-    pred_grad_dx = pred_grad[:, :, 0].contiguous()
-    pred_grad_dy = pred_grad[:, :, 1].contiguous()
+    loss = 0
+    if use_depth:
+        loss_depth = torch.abs(pred - gt).mean()
+        loss += loss_depth
 
-    gt_normal = torch.cat((-gt_grad_dx, -gt_grad_dy, ones), 1)
-    pred_normal = torch.cat((-pred_grad_dx, -pred_grad_dy, ones), 1)
+    if use_gradient or use_normal:
+        gt_grad = kornia.filters.spatial_gradient(gt)
+        pred_grad = kornia.filters.spatial_gradient(pred)
+        gt_grad_dx = gt_grad[:, :, 0].contiguous()
+        gt_grad_dy = gt_grad[:, :, 1].contiguous()
 
-    loss_depth = torch.abs(pred - gt)[mask].mean()
-    loss_dx = torch.abs(pred_grad_dx - gt_grad_dx)[mask].mean()
-    loss_dy = torch.abs(pred_grad_dy - gt_grad_dy)[mask].mean()
-    loss_normal = torch.abs(1 - F.cosine_similarity(pred_normal, gt_normal, dim=1))
-    loss_normal = loss_normal.unsqueeze(1)[mask].mean()
+        if use_gradient:
+            pred_grad_dx = pred_grad[:, :, 0].contiguous()
+            pred_grad_dy = pred_grad[:, :, 1].contiguous()
+            loss_dx = torch.abs(pred_grad_dx - gt_grad_dx).mean()
+            loss_dy = torch.abs(pred_grad_dy - gt_grad_dy).mean()
+            loss = loss_normal
 
-    use_depth = 1 if use_depth else 0
-    use_gradient = 1 if use_gradient else 0
-    use_normal = 1 if use_normal else 0
-    loss = loss_depth * use_depth + loss_normal * use_normal + (loss_dx + loss_dy) * use_gradient
+        if use_normal:
+            ones = torch.autograd.Variable(torch.ones_like(gt))
+            gt_normal = torch.cat((-gt_grad_dx, -gt_grad_dy, ones), 1)
+            pred_normal = torch.cat((-pred_grad_dx, -pred_grad_dy, ones), 1)
+            loss_normal = torch.abs(1 - F.cosine_similarity(pred_normal, gt_normal, dim=1))
+            loss_normal = loss_normal.unsqueeze(1).mean()
+            loss = loss_depth * use_depth + loss_normal * use_normal + (loss_dx + loss_dy) * use_gradient
+            loss += loss_dx + loss_dy
 
     return loss
 

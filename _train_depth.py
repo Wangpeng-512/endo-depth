@@ -10,7 +10,7 @@ if __name__ == "__main__":
     opt = options.parse()
 
     opt.model_name = "edp2022"
-    opt.data_path = "/opt/data/blender/blender-duodenum-5-211126"
+    opt.data_path = "G:/dataset/blender/blender-duodenum-5-211126"
     opt.val_path = None  # "/data/Datasets/blender/blender-duodenum-3-210909"
     opt.log_dir = "/opt/ytom/edp2022"
     opt.num_epochs = 15
@@ -29,8 +29,8 @@ if __name__ == "__main__":
     opt.frame_ids = [0]
     opt.scales = [0]  # 输出scale # [0, 1, 2, 3]
 
-    opt.batch_size = 20
-    opt.num_workers = 4
+    opt.batch_size = 4
+    opt.num_workers = 0
 
     opt.use_depth_loss = True
     opt.use_smooth_loss = True
@@ -63,5 +63,4 @@ if __name__ == "__main__":
                          precision=32,
                          limit_train_batches=1.0,
                          callbacks=[checkpoint, early_stop])
-    trainer.fit(model, train_loader,
-                ckpt_path="lightning_logs/version_1/checkpoints/epoch=8-step=6074.ckpt")  # , val_loader
+    trainer.fit(model, train_loader)  # , val_loader

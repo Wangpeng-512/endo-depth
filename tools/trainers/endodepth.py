@@ -2,7 +2,7 @@ from typing import Dict
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from datasets.mono_dataset import MonoDataset
+from time import time
 
 import networks.layers as layers
 import networks.losses as LOSSES
@@ -10,38 +10,12 @@ from kornia.losses.depth_smooth import inverse_depth_smoothness_loss
 from kornia.geometry.depth import depth_to_normals, depth_to_3d
 
 from networks.endodepth import ResnetAttentionEncoder, DepthDecoder
-
-from torch.utils.data.dataset import Subset
-from datasets.dataloader import ConcatDataset
-from tools.trainers.make_dataset import get_depth_dataset_only
 from datasets.blender_dataset import BlenderDataset
 
 import pytorch_lightning as pl
 
 
 class plEndoDepth(pl.LightningModule):
-
-    @staticmethod
-    def make_dataset(options):
-
-        if isinstance(options.data_path, list):
-            train_dataset = [get_depth_dataset_only(
-                path, options.height, options.width, options.png,
-                options.frame_ids, True) for path in options.data_path]
-            train_dataset = ConcatDataset(train_dataset)
-        else:
-            train_dataset = get_depth_dataset_only(
-                options.data_path, options.height, options.width, options.png,
-                options.frame_ids, True)
-
-        if options.val_path is not None:
-            val_dataset = get_depth_dataset_only(
-                options.val_path, options.height, options.width, options.png,
-                options.frame_ids, False)
-        else:
-            val_dataset = None
-
-        return train_dataset, val_dataset
 
     def __init__(self, options, *args, **kwargs):
         super(plEndoDepth, self).__init__()
