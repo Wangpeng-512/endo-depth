@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Dict
 import torch
 import torch.nn.functional as F
@@ -28,6 +29,8 @@ class plEndoDepth(pl.LightningModule):
         ######################################################
 
         if not options.test == True:
+            self.save_hyperparameters(options)
+
             # checking height and width are multiples of 32
             assert options.height % 32 == 0, "'height' must be a multiple of 32"
             assert options.width % 32 == 0, "'width' must be a multiple of 32"
@@ -49,6 +52,8 @@ class plEndoDepth(pl.LightningModule):
             self.register_buffer("iK", torch.eye(3).view(1, 3, 3).float())
 
         self.options = options
+        test = torch.load("/opt/data/blender/test.pth")
+        self.test = test.view(1, 3, *test.shape[-2:])
 
     def configure_optimizers(self):
         param = []
@@ -95,6 +100,16 @@ class plEndoDepth(pl.LightningModule):
         sch = self.lr_schedulers()
         sch.step()
         self.log(f'lr', sch.get_last_lr()[0])
+
+        # TEST
+        self.eval()
+        out = self.forward(self.test.to(self.device))
+        _, depth = layers.disp_to_depth_log10(
+            out, self.options.min_depth_units,
+            self.options.max_depth_units, 1.0)
+        depth = depth.detach().squeeze().cpu()
+        depth = (depth / depth.max() * 255).to(torch.uint8)
+        self.logger.experiment.add_image("depth", depth, self.current_epoch, dataformats="HW")
 
     def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int):
 

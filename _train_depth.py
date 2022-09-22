@@ -13,13 +13,13 @@ if __name__ == "__main__":
     opt.data_path = "/opt/data/blender/blender-duodenum-5-211126"
     opt.val_path = None  # "/data/Datasets/blender/blender-duodenum-3-210909"
     opt.log_dir = "/opt/ytom/edp2022"
-    opt.num_epochs = 15
+    opt.num_epochs = 50
     opt.log_frequency = 1
     opt.save_frequency = 1
     opt.png = True
-    opt.learning_rate = 0.0001  # 初始学习率
+    opt.learning_rate = 0.001  # 初始学习率
     opt.lr_decade_coeff = 0.2  # 规划衰减率
-    opt.scheduler_step_size = [5]  # 规划步骤
+    opt.scheduler_step_size = [2, 7, 12, 17, 27, 37]  # 规划步骤
     opt.betas = (0.9, 0.999)
     opt.weight_decay = 0.01
 
@@ -58,11 +58,11 @@ if __name__ == "__main__":
     early_stop = EarlyStopping(monitor="train_loss",
                                min_delta=1e-8, patience=5, mode="min",
                                stopping_threshold=1e-4, divergence_threshold=10, verbose=False)
-    # trainer = pl.Trainer(gpus=1, max_epochs=1, precision=32, fast_dev_run=True,
-    #                      limit_train_batches=0.01, callbacks=[checkpoint, early_stop])
     trainer = pl.Trainer(gpus=1, max_epochs=opt.num_epochs,
+                        #  fast_dev_run=True,
                          precision=32,
                          limit_train_batches=0.2,
                          callbacks=[checkpoint, early_stop])
     trainer.fit(model, train_loader,
-                ckpt_path="lightning_logs/version_1/checkpoints/epoch=8-step=6074.ckpt")  # , val_loader
+                ckpt_path="lightning_logs/version_2/checkpoints/epoch=3-step=899.ckpt"
+                )
