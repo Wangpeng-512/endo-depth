@@ -36,7 +36,7 @@ class plEndoDepth(pl.LightningModule):
         if options.val_path is not None:
             val_dataset = get_depth_dataset_only(
                 options.val_path, options.height, options.width, options.png,
-                options.frame_ids, True)
+                options.frame_ids, False)
         else:
             val_dataset = None
 
@@ -150,18 +150,18 @@ class plEndoDepth(pl.LightningModule):
             idepth = 1.0 / (depth + 1e-7)
             losses[f'{prefix}loss/smooth'] = inverse_depth_smoothness_loss(idepth, images)
         else:
-            losses[f'{prefix}loss/smooth'] = 0
+            losses[f'{prefix}loss/smooth'] = 0.0
 
         if self.options.use_depth_loss:
             losses[f'{prefix}loss/depth'] = LOSSES.depth_loss(depth_gt, depth, use_depth=True, use_normal=False, use_gradient=False)
         else:
-            losses[f'{prefix}loss/depth'] = 0
+            losses[f'{prefix}loss/depth'] = 0.0
 
         if self.options.use_normal_loss:
             losses[f'{prefix}loss/pc'], losses[f'{prefix}loss/normal'] = self.compute_normal_loss(depth, depth_gt, self.K)
         else:
-            losses[f'{prefix}loss/pc'] = 0
-            losses[f'{prefix}loss/normal'] = 0
+            losses[f'{prefix}loss/pc'] = 0.0
+            losses[f'{prefix}loss/normal'] = 0.0
 
         losses[f'{prefix}loss'] = \
             self.options.weight_depth_loss * losses[f'{prefix}loss/depth'] + \
