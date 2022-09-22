@@ -91,7 +91,6 @@ class MonoDataset(data.Dataset):
             return len(self.filenames) * scale
         else:
             return self.length * scale
-            
 
     def __getitem__(self, index):
         """Returns a single training item from the dataset as a dictionary.
@@ -189,4 +188,7 @@ class MonoDataset(data.Dataset):
         raise NotImplementedError
 
     def get_pose(self, index):
+        raise NotImplementedError
+
+    def get_intrinsic(self, index = None):
         raise NotImplementedError

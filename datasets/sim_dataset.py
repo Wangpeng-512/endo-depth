@@ -1,3 +1,4 @@
+from operator import inv
 import os
 import re
 import numpy as np
@@ -13,8 +14,8 @@ class SimDataset(MonoDataset):
         super(SimDataset, self).__init__(*args, **kwargs)
 
         self.cam = CameraModel("assets/blender.yaml")
-        self.K = self.cam.K
-        self.invK = self.cam.IK
+        self.K = self.cam.K.float()
+        self.invK = self.cam.IK.float()
 
         # self.near = 0.001  # ratio of focal length
         # self.far = 1000   # ratio of focal length
@@ -39,7 +40,7 @@ class SimDataset(MonoDataset):
                 if file.endswith(self.img_ext):
                     self.filenames.append(file)
             import re
-            self.filenames.sort(key=lambda f: int(re.sub('\D', '', f)))
+            self.filenames.sort(key=lambda f: int(re.sub(r'\D', '', f)))
         else:
             file = os.path.join(self.data_path, "{}.txt".format(self.split))
             assert(os.path.exists(file))
@@ -78,3 +79,6 @@ class SimDataset(MonoDataset):
             pose = np.vstack((pose, [0, 0, 0, 1]))
         pose[:3, 3] /= self.focal  # !!!
         return pose
+    
+    def get_intrinsic(self, index = None):
+        return self.K, self.invK

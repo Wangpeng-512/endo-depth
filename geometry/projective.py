@@ -83,7 +83,7 @@ class DepthBackproj(nn.Module):
         H, W = height, width
         v, u = torch.meshgrid(
             torch.linspace(0, 1, H).float(),
-            torch.linspace(0, 1, W).float())
+            torch.linspace(0, 1, W).float(), indexing='ij')
         i = torch.ones_like(u)
 
         self.height = height
