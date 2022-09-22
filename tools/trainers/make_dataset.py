@@ -1,3 +1,4 @@
+from torch.nn import Identity
 from torch.utils.data.dataset import random_split
 import torchvision.transforms as tfm
 
@@ -6,7 +7,7 @@ from tools.transforms import GammaJitter
 
 
 def get_preprocess(height, width, istrain=True,
-                   normalize=tfm.Normalize((0.5), (0.5))):
+                   normalize=Identity()):
     if istrain:
         brightness = (0.8, 1.2)
         contrast = (0.8, 1.2)

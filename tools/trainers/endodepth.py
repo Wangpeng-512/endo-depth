@@ -52,29 +52,35 @@ class plEndoDepth(pl.LightningModule):
 
         ######################################################
 
-        # checking height and width are multiples of 32
-        assert options.height % 32 == 0, "'height' must be a multiple of 32"
-        assert options.width % 32 == 0, "'width' must be a multiple of 32"
+        if not options.test == True:
+            # checking height and width are multiples of 32
+            assert options.height % 32 == 0, "'height' must be a multiple of 32"
+            assert options.width % 32 == 0, "'width' must be a multiple of 32"
 
-        self.train_set, self.val_set = self.make_dataset(options)
+            self.train_set, self.val_set = self.make_dataset(options)
 
-        dataset: MonoDataset
-        if isinstance(self.train_set, Subset):
-            dataset = self.train_set.dataset
-        if isinstance(self.train_set, ConcatDataset):
-            dataset = self.train_set.datasets[0]
+            dataset: MonoDataset
+            if isinstance(self.train_set, Subset):
+                dataset = self.train_set.dataset
+            if isinstance(self.train_set, ConcatDataset):
+                dataset = self.train_set.datasets[0]
+            else:
+                dataset = self.train_set
+
+            options.min_depth_units = dataset.log_near
+            options.max_depth_units = dataset.log_far
+            options.min_depth = dataset.near
+            options.max_depth = dataset.far
+
+            K, iK = dataset.get_intrinsic()
+            self.register_buffer("K", (K[:3, :3]).view(1, 3, 3))
+            self.register_buffer("iK", (iK[:3, :3]).view(1, 3, 3))
         else:
-            dataset = self.train_set
-
-        options.min_depth_units = dataset.log_near
-        options.max_depth_units = dataset.log_far
-        options.min_depth = dataset.near
-        options.max_depth = dataset.far
+            self.eval()
+            self.register_buffer("K", torch.eye(3).view(1, 3, 3).float())
+            self.register_buffer("iK", torch.eye(3).view(1, 3, 3).float())
+        
         self.options = options
-
-        K, iK = dataset.get_intrinsic()
-        self.register_buffer("K", (K[:3, :3]).view(1, 3, 3))
-        self.register_buffer("iK", (iK[:3, :3]).view(1, 3, 3))
 
     def configure_optimizers(self):
         param = []
