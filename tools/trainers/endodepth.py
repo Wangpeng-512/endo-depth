@@ -18,19 +18,12 @@ import pytorch_lightning as pl
 
 class plEndoDepth(pl.LightningModule):
 
-    def __init__(self, options, *args, **kwargs):
+    def __init__(self, options=None, test=None, *args, **kwargs):
         super(plEndoDepth, self).__init__()
 
-        ######################################################
+        istest = test is not None and test
 
-        self.encoder = ResnetAttentionEncoder(options.num_layers, False)
-        self.decoder = DepthDecoder(self.encoder.num_ch_enc, [0, 1, 2, 3])
-
-        ######################################################
-
-        if not options.test == True:
-            self.save_hyperparameters(options)
-
+        if not istest:
             # checking height and width are multiples of 32
             assert options.height % 32 == 0, "'height' must be a multiple of 32"
             assert options.width % 32 == 0, "'width' must be a multiple of 32"
@@ -42,19 +35,27 @@ class plEndoDepth(pl.LightningModule):
             options.max_depth_units = dataset.log_far
             options.min_depth = dataset.near
             options.max_depth = dataset.far
-
-            test = torch.load("/opt/data/blender/test.pth")
-            self.test = test.view(1, 3, *test.shape[-2:])
-
             K, iK = dataset.get_intrinsic()
+
+            # test = torch.load("/opt/data/blender/test.pth")
+            # self.test = test.view(1, 3, *test.shape[-2:])
+
             self.register_buffer("K", (K[:3, :3]).view(1, 3, 3))
             self.register_buffer("iK", (iK[:3, :3]).view(1, 3, 3))
+            self.save_hyperparameters(options)
+
         else:
-            self.eval()
             self.register_buffer("K", torch.eye(3).view(1, 3, 3).float())
             self.register_buffer("iK", torch.eye(3).view(1, 3, 3).float())
 
+        if isinstance(options, dict):
+            options = SimpleNamespace(**options)
+
         self.options = options
+        self.encoder = ResnetAttentionEncoder(self.options.num_layers, False)
+        self.decoder = DepthDecoder(self.encoder.num_ch_enc, [0, 1, 2, 3])
+        if istest:
+            self.eval()
 
     def configure_optimizers(self):
         param = []
@@ -77,7 +78,11 @@ class plEndoDepth(pl.LightningModule):
     def forward(self, images: torch.Tensor):
         features = self.encoder.forward(images)
         outputs = self.decoder.forward(features, scales=self.options.scales)
-        return outputs
+        if not self.training:
+            _, depth = layers.disp_to_depth_log10(
+                outputs, self.options.min_depth_units,
+                self.options.max_depth_units, 1.0)
+        return depth
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int):
 
