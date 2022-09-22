@@ -10,7 +10,7 @@ if __name__ == "__main__":
     opt = options.parse()
 
     opt.model_name = "edp2022"
-    opt.data_path = "G:/dataset/blender/blender-duodenum-5-211126"
+    opt.data_path = "/opt/data/blender/blender-duodenum-5-211126"
     opt.val_path = None  # "/data/Datasets/blender/blender-duodenum-3-210909"
     opt.log_dir = "/opt/ytom/edp2022"
     opt.num_epochs = 15
@@ -29,8 +29,8 @@ if __name__ == "__main__":
     opt.frame_ids = [0]
     opt.scales = [0]  # 输出scale # [0, 1, 2, 3]
 
-    opt.batch_size = 4
-    opt.num_workers = 0
+    opt.batch_size = 12
+    opt.num_workers = 6
 
     opt.use_depth_loss = True
     opt.use_smooth_loss = True
@@ -54,13 +54,15 @@ if __name__ == "__main__":
     #     num_workers=opt.num_workers, pin_memory=True, drop_last=False
     # )
 
-    checkpoint = ModelCheckpoint(monitor="val_loss")
-    early_stop = EarlyStopping(monitor="val_loss", min_delta=1e-8, patience=5, mode="min",
+    checkpoint = ModelCheckpoint(monitor="train_loss")
+    early_stop = EarlyStopping(monitor="train_loss",
+                               min_delta=1e-8, patience=5, mode="min",
                                stopping_threshold=1e-4, divergence_threshold=10, verbose=False)
     # trainer = pl.Trainer(gpus=1, max_epochs=1, precision=32, fast_dev_run=True,
     #                      limit_train_batches=0.01, callbacks=[checkpoint, early_stop])
     trainer = pl.Trainer(gpus=1, max_epochs=opt.num_epochs,
                          precision=32,
-                         limit_train_batches=1.0,
+                         limit_train_batches=0.2,
                          callbacks=[checkpoint, early_stop])
-    trainer.fit(model, train_loader)  # , val_loader
+    trainer.fit(model, train_loader,
+                ckpt_path="lightning_logs/version_1/checkpoints/epoch=8-step=6074.ckpt")  # , val_loader

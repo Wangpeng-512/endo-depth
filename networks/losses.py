@@ -65,7 +65,7 @@ def depth_loss(gt: torch.Tensor, pred: torch.Tensor,
 
     loss = 0
     if use_depth:
-        loss_depth = torch.abs(pred - gt).mean()
+        loss_depth = F.l1_loss(pred, gt)
         loss += loss_depth
 
     if use_gradient or use_normal:
