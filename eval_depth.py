@@ -1,8 +1,7 @@
-import os
 import cv2
-import glob
-import numpy as np
 import argparse
+import numpy as np
+from tqdm import tqdm
 import torch
 import torchvision.transforms as tfm
 from pathlib import Path
@@ -10,7 +9,7 @@ from geometry.camera import CameraModel, DepthBackprojD
 import torchvision.transforms as tfm
 from torchvision.datasets.folder import pil_loader
 from tools.trainers.endodepth import plEndoDepth
-from tools.visualize import visual_depth
+from tools.visualize import visual_depth, visual_rgb
 from tools.o3d_visual import np6d_o3d_color, o3d
 
 
@@ -48,6 +47,12 @@ def parse_args():
         default=None,
         help='path to the output directory where the results will be stored'
     )
+    parser.add_argument(
+        '--show',
+        action="store_true",
+        default=False,
+        help='path to the output directory where the results will be stored'
+    )
     return parser.parse_args()
 
 
@@ -61,7 +66,7 @@ def predict(args):
     hpam = path / "hparams.yaml"
     # Load model
     model = plEndoDepth.load_from_checkpoint(
-        "test/epoch=15-step=1439.ckpt",
+        ckpt,
         test=True,
         hparams_file=str(hpam),
         map_location="cpu")
@@ -75,33 +80,44 @@ def predict(args):
         tfm.Resize((H, W)),
     ])
 
+    images = Path(args.image_path)
+    if images.is_dir():
+        iter = tqdm(images.glob("*.png"))
+    else:
+        iter = tqdm([images])
+
     with torch.no_grad():
-        # PREPROCESS
-        file = Path(args.image_path)
-        color = pil_loader(file)
-        color = transform(color)[None]
-        depth = model.forward(color)
+        for file in iter:
+            # PREPROCESS
+            color = pil_loader(file)
+            color = transform(color)[None]
+            depth = model.forward(color)
 
-        # VISUALIZE
-        pc = backproj.forward(depth)
-        pc_col = torch.cat([pc[:, 0, :3], color], dim=1)
-        pcd = np6d_o3d_color(pc_col.detach().cpu().view(6, -1).T.contiguous().numpy())
+            # VISUALIZE
+            pc = backproj.forward(depth)
+            pc_col = torch.cat([pc[:, 0, :3], color], dim=1)
+            pcd = np6d_o3d_color(pc_col.detach().cpu().view(6, -1).T.contiguous().numpy())
 
-        if args.output_path is not None:
-            outpath = Path(args.output_path).expanduser()
-            if not outpath.exists():
-                os.makedirs(outpath)
+            if args.output_path is not None:
+                outpath = Path(args.output_path).expanduser()
+                if not outpath.exists():
+                    import os
+                    os.makedirs(outpath)
 
-            f = file.stem
-            img = visual_depth(depth, show=False)
-            fname = '{}/{}.jpg'.format(outpath, f)
-            cv2.imwrite(fname, img)
-            fname = '{}/{}.npy'.format(outpath, f)
-            np.save(fname, depth.cpu().numpy())
-            fname = '{}/mesh_{}.ply'.format(outpath, f)
-            o3d.io.write_point_cloud(fname, pcd, write_ascii=True)
+                f = file.stem
+                src = visual_rgb(color, show=False)
+                fname = '{}/{}.png'.format(outpath, f)
+                cv2.imwrite(fname, src)
+                img = visual_depth(depth, show=False)
+                fname = '{}/{}.jpg'.format(outpath, f)
+                cv2.imwrite(fname, img)
+                fname = '{}/{}.npy'.format(outpath, f)
+                np.save(fname, depth.cpu().numpy())
+                fname = '{}/{}.ply'.format(outpath, f)
+                o3d.io.write_point_cloud(fname, pcd, write_ascii=True)
 
-        o3d.visualization.draw_geometries([pcd], width=640, height=480)
+            if args.show:
+                o3d.visualization.draw_geometries([pcd], width=640, height=480)
 
 
 if __name__ == "__main__":
