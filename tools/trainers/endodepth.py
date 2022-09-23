@@ -37,8 +37,8 @@ class plEndoDepth(pl.LightningModule):
             options.max_depth = dataset.far
             K, iK = dataset.get_intrinsic()
 
-            # test = torch.load("/opt/data/blender/test.pth")
-            # self.test = test.view(1, 3, *test.shape[-2:])
+            test = torch.load("/opt/data/blender/test.pth")
+            self.test = test.view(1, 3, *test.shape[-2:])
 
             self.register_buffer("K", (K[:3, :3]).view(1, 3, 3))
             self.register_buffer("iK", (iK[:3, :3]).view(1, 3, 3))
@@ -64,9 +64,8 @@ class plEndoDepth(pl.LightningModule):
         opm = optim.Adam(param, self.options.learning_rate,
                          betas=self.options.betas,
                          weight_decay=self.options.weight_decay)
-
         lr = optim.lr_scheduler.ExponentialLR(
-            opm, gamma=self.options.lr_decade_coeff, last_epoch=self.current_epoch)
+            opm, gamma=self.options.lr_decade_coeff, last_epoch=self.current_epoch - 1)
         return [opm], [lr]
 
     def forward(self, images: torch.Tensor):
@@ -76,7 +75,9 @@ class plEndoDepth(pl.LightningModule):
             _, depth = layers.disp_to_depth_log10(
                 outputs, self.options.min_depth_units,
                 self.options.max_depth_units, 1.0)
-        return depth
+            return depth
+        else:
+            return outputs
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int):
 
