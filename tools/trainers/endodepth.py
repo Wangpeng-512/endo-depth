@@ -65,14 +65,8 @@ class plEndoDepth(pl.LightningModule):
                          betas=self.options.betas,
                          weight_decay=self.options.weight_decay)
 
-        if isinstance(self.options.scheduler_step_size, int):
-            milestone = [self.options.scheduler_step_size]
-        else:
-            milestone = self.options.scheduler_step_size
-
-        lr = optim.lr_scheduler.MultiStepLR(
-            opm, milestones=milestone,
-            gamma=self.options.lr_decade_coeff)
+        lr = optim.lr_scheduler.ExponentialLR(
+            opm, gamma=self.options.lr_decade_coeff, last_epoch=self.current_epoch)
         return [opm], [lr]
 
     def forward(self, images: torch.Tensor):
