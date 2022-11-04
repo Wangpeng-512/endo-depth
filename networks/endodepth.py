@@ -101,21 +101,23 @@ class DepthDecoder(nn.Module):
             self.use_skips = use_skips
 
         num_ch_enc = tuple(num_ch_enc)
-        num_ch_dec = (32, 64, 128, 256)
+        num_ch_dec = (16, 32, 64, 128, 256)
 
         self.decoder = nn.ModuleList()
-        for l in range(3, -1, -1):
+        for l in range(4, -1, -1):
+            # transformer少一层
+            i = l-1
             layer = nn.ModuleDict()
             # upconv_0
-            num_ch_in = num_ch_enc[-1] if l == 3 else num_ch_dec[l + 1]
+            num_ch_in = num_ch_enc[-1] if l == 4 else num_ch_dec[l + 1]
             num_ch_out = num_ch_dec[l]
             layer["upconv_0"] = convbn(int(num_ch_in), num_ch_out, kernel=3)
 
             # upconv_1
             if l in self.use_skips:
                 num_ch_in = num_ch_dec[l]
-                if l > 0:
-                    num_ch_in += num_ch_enc[l - 1]
+                if i > 1:
+                    num_ch_in += num_ch_enc[i-1]
                 num_ch_out = num_ch_dec[l]
                 layer["upconv_1"] = convbn(int(num_ch_in), num_ch_out, kernel=3)
             else:
@@ -139,7 +141,7 @@ class DepthDecoder(nn.Module):
 
     def forward_train(self, input_features: Dict[int, torch.Tensor], scales: List[int] = None):
 
-        scales = [0] if scales is None else scales
+        scales = [-1] if scales is None else scales
         outputs: Dict[int, torch.Tensor] = {}
 
         x = input_features[3]
@@ -149,7 +151,7 @@ class DepthDecoder(nn.Module):
             x = layer["upconv_0"](x)
             x = F.interpolate(x, scale_factor=2.0, mode=self.upsample_mode)  # upsample
 
-            if i - 1 in input_features.keys():
+            if i-1 in input_features.keys():
                 x = torch.cat((x, input_features[i - 1]), 1)
             x = layer["upconv_1"](x)
 
@@ -159,16 +161,16 @@ class DepthDecoder(nn.Module):
         return outputs
 
     def forward_test(self, input_features: List[torch.Tensor]):
-        assert(len(input_features) == 5)
+        assert(len(input_features) == 4)
         output = None
-        x = input_features[4]
+        x = input_features[3]
         for j, layer in enumerate(self.decoder):
-            i: int = 4 - j
+            i: int = 3 - j
             x = layer["upconv_0"](x)
             x = F.interpolate(x, scale_factor=2.0, mode=self.upsample_mode)  # upsample
             if i - 1 >= 0 and i - 1 < len(input_features):
                 x = torch.cat((x, input_features[i - 1]), 1)
             x = layer["upconv_1"](x)
-            if i == 0:
+            if i == -1:
                 output = torch.sigmoid(layer["dispconv"](x))
         return output

@@ -121,7 +121,7 @@ class plEndoDepth(pl.LightningModule):
         out = self.forward(I)
 
         _, D_ = layers.disp_to_depth_log10(
-            out[0], self.options.min_depth_units,
+            out[-1], self.options.min_depth_units,
             self.options.max_depth_units, 1.0)
 
         losses = self.compute_loss(I, D, D_, prefix="train_")
