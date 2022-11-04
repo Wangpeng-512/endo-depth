@@ -1,3 +1,11 @@
+'''
+Author: Wangpeng-512 1119785034@qq.com
+Date: 2022-11-04 09:46:20
+LastEditors: Wangpeng-512 1119785034@qq.com
+LastEditTime: 2022-11-04 15:59:15
+FilePath: \code2\tools\options\endodepth.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 from tools.option import BasicOptions
 
 
@@ -19,6 +27,10 @@ class EndoDepthOptions(BasicOptions):
                                  help="if set, disables ssim in the loss",
                                  action="store_true",
                                  default=False)
+        self.parser.add_argument('--encoder', 
+                                type=str,   
+                                help='type of encoder, base07, large07, tiny07', 
+                                default='tiny07')
 
 
 class EndoDepthOptions_V3(EndoDepthOptions):

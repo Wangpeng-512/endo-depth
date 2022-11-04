@@ -3,6 +3,7 @@ import torch.nn as nn
 from typing import Dict, List
 import torch.nn.functional as F
 from networks.resnet_encoder import ResnetEncoder
+from networks.swin_transformer import SwinTransformer
 from networks.layers import convbn
 
 
@@ -84,6 +85,7 @@ class ResnetAttentionEncoder(ResnetEncoder):
         return features
 
 
+
 class DepthDecoder(nn.Module):
     def __init__(self, num_ch_enc, scales=[0, 1, 2, 3],
                  num_output_channels=1,
@@ -99,13 +101,13 @@ class DepthDecoder(nn.Module):
             self.use_skips = use_skips
 
         num_ch_enc = tuple(num_ch_enc)
-        num_ch_dec = (16, 32, 64, 128, 256)
+        num_ch_dec = (32, 64, 128, 256)
 
         self.decoder = nn.ModuleList()
-        for l in range(4, -1, -1):
+        for l in range(3, -1, -1):
             layer = nn.ModuleDict()
             # upconv_0
-            num_ch_in = num_ch_enc[-1] if l == 4 else num_ch_dec[l + 1]
+            num_ch_in = num_ch_enc[-1] if l == 3 else num_ch_dec[l + 1]
             num_ch_out = num_ch_dec[l]
             layer["upconv_0"] = convbn(int(num_ch_in), num_ch_out, kernel=3)
 
@@ -140,10 +142,10 @@ class DepthDecoder(nn.Module):
         scales = [0] if scales is None else scales
         outputs: Dict[int, torch.Tensor] = {}
 
-        x = input_features[4]
+        x = input_features[3]
         for j, layer in enumerate(self.decoder):
 
-            i: int = 4 - j
+            i: int = 3 - j
             x = layer["upconv_0"](x)
             x = F.interpolate(x, scale_factor=2.0, mode=self.upsample_mode)  # upsample
 

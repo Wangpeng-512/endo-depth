@@ -11,6 +11,7 @@ from kornia.losses.depth_smooth import inverse_depth_smoothness_loss
 from kornia.geometry.depth import depth_to_normals, depth_to_3d
 
 from networks.endodepth import ResnetAttentionEncoder, DepthDecoder
+from networks.swin_transformer import SwinTransformer
 from datasets.blender_dataset import BlenderDataset
 
 import pytorch_lightning as pl
@@ -18,7 +19,7 @@ import pytorch_lightning as pl
 
 class plEndoDepth(pl.LightningModule):
 
-    def __init__(self, options=None, test=None, *args, **kwargs):
+    def __init__(self, options=None, test=None,frozen_stages=-1, *args, **kwargs):
         super(plEndoDepth, self).__init__()
 
         istest = test is not None and test
@@ -37,7 +38,7 @@ class plEndoDepth(pl.LightningModule):
             options.max_depth = dataset.far
             K, iK = dataset.get_intrinsic()
 
-            test = torch.load("/opt/data/blender/test.pth")
+            test = torch.load("D:\\VScode\\code2\\data\\test.pth")
             self.test = test.view(1, 3, *test.shape[-2:])
 
             self.register_buffer("K", (K[:3, :3]).view(1, 3, 3))
@@ -47,13 +48,45 @@ class plEndoDepth(pl.LightningModule):
         else:
             self.register_buffer("K", torch.eye(3).view(1, 3, 3).float())
             self.register_buffer("iK", torch.eye(3).view(1, 3, 3).float())
+        
+        window_size = int(options.encoder[-2:])
+
+        if options.encoder[:-2] == 'base':
+            embed_dim = 64
+            depths = [2, 2, 18, 2]
+            num_heads = [2, 4, 8, 16]
+            in_channels = [64, 128, 256, 512]
+        elif options.encoder[:-2] == 'large':
+            embed_dim = 64
+            depths = [2, 2, 18, 2]
+            num_heads = [6, 12, 24, 48]
+            in_channels = [192, 384, 768, 1536]
+        elif options.encoder[:-2] == 'tiny':
+            embed_dim = 96
+            depths = [2, 2, 6, 2]
+            num_heads = [3, 6, 12, 24]
+            in_channels = [96, 192, 384, 768]
+
+        backbone_cfg = dict(
+            embed_dim=embed_dim,
+            depths=depths,
+            num_heads=num_heads,
+            window_size=window_size,
+            ape=False,
+            drop_path_rate=0.3,
+            patch_norm=True,
+            use_checkpoint=False,
+            frozen_stages=frozen_stages
+        )    
 
         if isinstance(options, dict):
             options = SimpleNamespace(**options)
 
         self.options = options
-        self.encoder = ResnetAttentionEncoder(self.options.num_layers, False)
-        self.decoder = DepthDecoder(self.encoder.num_ch_enc, [0, 1, 2, 3])
+        # self.encoder = ResnetAttentionEncoder(self.options.num_layers, False)
+        self.encoder = SwinTransformer(**backbone_cfg)
+        # self.decoder = DepthDecoder(self.encoder.num_ch_enc, [0, 1, 2, 3])
+        self.decoder = DepthDecoder(in_channels, [0, 1, 2, 3])
         if istest:
             self.eval()
 

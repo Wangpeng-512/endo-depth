@@ -10,9 +10,9 @@ if __name__ == "__main__":
     opt = options.parse()
 
     opt.model_name = "edp2022"
-    opt.data_path = "/opt/data/blender/blender-duodenum-5-211126"
+    opt.data_path = "D:\\VScode\\code2\\data\\blender"
     opt.val_path = None  # "/data/Datasets/blender/blender-duodenum-3-210909"
-    opt.log_dir = "/opt/ytom/edp2022"
+    opt.log_dir = "D:\\VScode\\code2\\data\\edp2022"
     opt.num_epochs = 50
     opt.log_frequency = 1
     opt.save_frequency = 1
@@ -28,8 +28,8 @@ if __name__ == "__main__":
     opt.frame_ids = [0]
     opt.scales = [0]  # 输出scale # [0, 1, 2, 3]
 
-    opt.batch_size = 30
-    opt.num_workers = 6
+    opt.batch_size = 5
+    opt.num_workers = 1
 
     opt.use_depth_loss = True
     opt.use_smooth_loss = True
@@ -57,7 +57,8 @@ if __name__ == "__main__":
     early_stop = EarlyStopping(monitor="train_loss",
                                min_delta=1e-8, patience=5, mode="min",
                                stopping_threshold=1e-4, divergence_threshold=10, verbose=False)
-    trainer = pl.Trainer(gpus=1, max_epochs=opt.num_epochs,
+    # trainer = pl.Trainer(gpus=1, max_epochs=opt.num_epochs,
+    trainer = pl.Trainer(max_epochs=opt.num_epochs,
                         #  fast_dev_run=True,
                          precision=32,
                          limit_train_batches=0.2,
