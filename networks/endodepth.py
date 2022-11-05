@@ -100,13 +100,18 @@ class DepthDecoder(nn.Module):
         else:
             self.use_skips = use_skips
 
+        enc_n = len(num_ch_enc)
         num_ch_enc = tuple(num_ch_enc)
         num_ch_dec = (16, 32, 64, 128, 256)
 
         self.decoder = nn.ModuleList()
         for l in range(4, -1, -1):
             # transformer少一层
-            i = l-1
+            if enc_n == 4:
+                i = l-1
+            else:
+                i=l
+
             layer = nn.ModuleDict()
             # upconv_0
             num_ch_in = num_ch_enc[-1] if l == 4 else num_ch_dec[l + 1]
@@ -116,7 +121,7 @@ class DepthDecoder(nn.Module):
             # upconv_1
             if l in self.use_skips:
                 num_ch_in = num_ch_dec[l]
-                if i > 1:
+                if i > 0:
                     num_ch_in += num_ch_enc[i-1]
                 num_ch_out = num_ch_dec[l]
                 layer["upconv_1"] = convbn(int(num_ch_in), num_ch_out, kernel=3)
@@ -137,17 +142,19 @@ class DepthDecoder(nn.Module):
         if self.training:
             return self.forward_train(input_features, scales)
         else:
-            return self.forward_test(input_features)
+            return self.forward_test(input_features,scales)
 
     def forward_train(self, input_features: Dict[int, torch.Tensor], scales: List[int] = None):
 
         scales = [-1] if scales is None else scales
-        outputs: Dict[int, torch.Tensor] = {}
+        # outputs: Dict[int, torch.Tensor] = {}
+        outputs : torch.tensor = None
+        feature_n = len(input_features)
 
-        x = input_features[3]
+        x = input_features[feature_n-1]
         for j, layer in enumerate(self.decoder):
 
-            i: int = 3 - j
+            i: int = feature_n-1 - j
             x = layer["upconv_0"](x)
             x = F.interpolate(x, scale_factor=2.0, mode=self.upsample_mode)  # upsample
 
@@ -156,21 +163,22 @@ class DepthDecoder(nn.Module):
             x = layer["upconv_1"](x)
 
             if i in scales:
-                outputs[i] = torch.sigmoid(layer["dispconv"](x))
+                outputs = torch.sigmoid(layer["dispconv"](x))
 
         return outputs
 
-    def forward_test(self, input_features: List[torch.Tensor]):
-        assert(len(input_features) == 4)
+    def forward_test(self, input_features: List[torch.Tensor], scales: List[int] = None):
+        # assert(len(input_features) == 4)
         output = None
-        x = input_features[3]
+        feature_n = len(input_features)
+        x = input_features[feature_n-1]
         for j, layer in enumerate(self.decoder):
-            i: int = 3 - j
+            i: int = feature_n-1 - j
             x = layer["upconv_0"](x)
             x = F.interpolate(x, scale_factor=2.0, mode=self.upsample_mode)  # upsample
-            if i - 1 >= 0 and i - 1 < len(input_features):
+            if i - 1 >= 0 and i - 1 < feature_n:
                 x = torch.cat((x, input_features[i - 1]), 1)
             x = layer["upconv_1"](x)
-            if i == -1:
+            if i in scales:
                 output = torch.sigmoid(layer["dispconv"](x))
         return output

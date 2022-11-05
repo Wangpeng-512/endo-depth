@@ -49,44 +49,51 @@ class plEndoDepth(pl.LightningModule):
             self.register_buffer("K", torch.eye(3).view(1, 3, 3).float())
             self.register_buffer("iK", torch.eye(3).view(1, 3, 3).float())
         
-        window_size = int(options.encoder[-2:])
-
-        if options.encoder[:-2] == 'base':
-            embed_dim = 64
-            depths = [2, 2, 18, 2]
-            num_heads = [2, 4, 8, 16]
-            in_channels = [64, 128, 256, 512]
-        elif options.encoder[:-2] == 'large':
-            embed_dim = 64
-            depths = [2, 2, 18, 2]
-            num_heads = [6, 12, 24, 48]
-            in_channels = [192, 384, 768, 1536]
-        elif options.encoder[:-2] == 'tiny':
-            embed_dim = 96
-            depths = [2, 2, 6, 2]
-            num_heads = [3, 6, 12, 24]
-            in_channels = [96, 192, 384, 768]
-
-        backbone_cfg = dict(
-            embed_dim=embed_dim,
-            depths=depths,
-            num_heads=num_heads,
-            window_size=window_size,
-            ape=False,
-            drop_path_rate=0.3,
-            patch_norm=True,
-            use_checkpoint=False,
-            frozen_stages=frozen_stages
-        )    
+        if options.backbone == 'transformer':
+            window_size = int(options.encoder[-2:])
+    
+            if options.encoder[:-2] == 'base':
+                embed_dim = 64
+                depths = [2, 2, 18, 2]
+                num_heads = [2, 4, 8, 16]
+                in_channels = [64, 128, 256, 512]
+            elif options.encoder[:-2] == 'large':
+                embed_dim = 192
+                depths = [2, 2, 18, 2]
+                num_heads = [6, 12, 24, 48]
+                in_channels = [192, 384, 768, 1536]
+            elif options.encoder[:-2] == 'tiny':
+                embed_dim = 96
+                depths = [2, 2, 6, 2]
+                num_heads = [3, 6, 12, 24]
+                in_channels = [96, 192, 384, 768]
+    
+            backbone_cfg = dict(
+                embed_dim=embed_dim,
+                depths=depths,
+                num_heads=num_heads,
+                window_size=window_size,
+                ape=False,
+                drop_path_rate=0.3,
+                patch_norm=True,
+                use_checkpoint=False,
+                frozen_stages=frozen_stages
+            )    
+            self.encoder = SwinTransformer(**backbone_cfg)
+            self.num_ch_enc = in_channels
+        if options.backbone == 'resnet':
+            self.encoder = ResnetAttentionEncoder(options.num_layers, False)
+            self.num_ch_enc = self.encoder.num_ch_enc
+        else:
+            print("invalid backbone net!")
 
         if isinstance(options, dict):
             options = SimpleNamespace(**options)
 
         self.options = options
         # self.encoder = ResnetAttentionEncoder(self.options.num_layers, False)
-        self.encoder = SwinTransformer(**backbone_cfg)
-        # self.decoder = DepthDecoder(self.encoder.num_ch_enc, [0, 1, 2, 3])
-        self.decoder = DepthDecoder(in_channels, [0, 1, 2, 3])
+        
+        self.decoder = DepthDecoder(self.num_ch_enc, [0, 1, 2, 3])
         if istest:
             self.eval()
 
@@ -121,7 +128,7 @@ class plEndoDepth(pl.LightningModule):
         out = self.forward(I)
 
         _, D_ = layers.disp_to_depth_log10(
-            out[-1], self.options.min_depth_units,
+            out, self.options.min_depth_units,
             self.options.max_depth_units, 1.0)
 
         losses = self.compute_loss(I, D, D_, prefix="train_")

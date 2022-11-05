@@ -1,3 +1,11 @@
+'''
+Author: Wangpeng-512 1119785034@qq.com
+Date: 2022-11-04 09:46:17
+LastEditors: Wangpeng-512 1119785034@qq.com
+LastEditTime: 2022-11-04 23:28:32
+FilePath: \code2\train_depth.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BDot
+'''
 from tools.trainers.endodepth import plEndoDepth
 from tools.options.endodepth import EndoDepthOptions
 from torch.utils.data import DataLoader
@@ -8,7 +16,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 if __name__ == "__main__":
     options = EndoDepthOptions()
     opt = options.parse()
-
+    
+    opt.backbone = "transformer" # default 'transformer' or 'resnet'
     opt.model_name = "edp2022"
     opt.data_path = "D:\\VScode\\code2\\data\\blender"
     opt.val_path = None  # "/data/Datasets/blender/blender-duodenum-3-210909"
